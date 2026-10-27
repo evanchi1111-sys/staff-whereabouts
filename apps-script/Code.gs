@@ -39,6 +39,12 @@ function ensureSheet_(ss, name, headers) {
   return sh;
 }
 
+/** 新增一列，並先把該列設為純文字，避免日期被自動轉換。 */
+function appendText_(sh, row) {
+  var r = sh.getLastRow() + 1;
+  sh.getRange(r, 1, 1, row.length).setNumberFormat('@').setValues([row]);
+}
+
 function id_() { return Utilities.getUuid(); }
 
 function readRows_(name) {
@@ -52,7 +58,14 @@ function readRows_(name) {
       var o = {};
       head.forEach(function (k, i) {
         var v = r[i];
-        o[k] = v instanceof Date ? v.toISOString() : String(v);
+        if (v instanceof Date) {
+          // 試算表偶爾會把日期文字自動轉成日期：純日期欄位依試算表時區還原成 yyyy-MM-dd
+          o[k] = /Date$/.test(k)
+            ? Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd')
+            : v.toISOString();
+        } else {
+          o[k] = String(v);
+        }
       });
       return o;
     });
@@ -141,7 +154,7 @@ function handle_(req) {
       deleteWhere_(SHEET_TRIPS, function (r) {
         return String(r[1]) === staffId && new Date(r[5]) > now;
       });
-      sheet_(SHEET_TRIPS).appendRow([
+      appendText_(sheet_(SHEET_TRIPS), [
         id_(), staffId, purpose, place, startAt.toISOString(), endAt.toISOString()
       ]);
       // 不留歷史：清掉結束超過一天的紀錄
@@ -166,7 +179,7 @@ function handle_(req) {
       var name = text_(req.name, '姓名', 20);
       var dup = readRows_(SHEET_STAFF).some(function (s) { return s.name === name; });
       if (dup) throw new Error('名單裡已經有這個姓名');
-      sheet_(SHEET_STAFF).appendRow([id_(), name]);
+      appendText_(sheet_(SHEET_STAFF), [id_(), name]);
       break;
     }
     case 'removeStaff':
@@ -181,7 +194,7 @@ function handle_(req) {
       if (!re.test(sd) || !re.test(ed)) throw new Error('日期格式不正確');
       if (ed < sd) throw new Error('結束日期不能早於開始日期');
       readLeaves_();
-      sheet_(SHEET_LEAVES).appendRow([id_(), String(req.staffId), sd, ed]);
+      appendText_(sheet_(SHEET_LEAVES), [id_(), String(req.staffId), sd, ed]);
       // 不留歷史：清掉結束超過兩天的請假
       var old = Utilities.formatDate(new Date(now.getTime() - 2 * 24 * 3600 * 1000), 'Asia/Taipei', 'yyyy-MM-dd');
       deleteWhere_(SHEET_LEAVES, function (r) { return String(r[3]) < old; });
@@ -198,7 +211,7 @@ function handle_(req) {
         return o.kind === kind && o.label === label;
       });
       if (dupOpt) throw new Error('已經有相同的選項');
-      sheet_(SHEET_OPTIONS).appendRow([id_(), kind, label]);
+      appendText_(sheet_(SHEET_OPTIONS), [id_(), kind, label]);
       break;
     }
     case 'removeOption':
