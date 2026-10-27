@@ -9,7 +9,11 @@
   var state = { data: null, busy: false };
   var $grid = document.getElementById("grid");
   var $hint = document.getElementById("hint");
-  var $clock = document.getElementById("clock");
+  var $date = document.getElementById("date");
+  var $time = document.getElementById("time");
+  var $sIn = document.getElementById("sIn");
+  var $sOut = document.getElementById("sOut");
+  var $sLeave = document.getElementById("sLeave");
   var $dlg = document.getElementById("dlg");
   var $toast = document.getElementById("toast");
 
@@ -100,20 +104,24 @@
   // ---------- 畫面 ----------
   function render() {
     var now = new Date();
-    $clock.textContent = "週" + WEEK[now.getDay()] + " " + hhmm(now);
+    $date.textContent = pad(now.getMonth() + 1) + "/" + pad(now.getDate()) + " 週" + WEEK[now.getDay()];
+    $time.textContent = hhmm(now);
     var working = isWorkTime(now);
     $hint.textContent = working
-      ? "點自己的名牌登記外出或請假；回來後再點一次按「我已回來」。"
-      : "目前為下班時間（平日 07:30–16:30 才會顯示上班／外出）。要預先登記請假，點自己的名牌即可。";
+      ? "點自己的名牌登記外出或請假；回來後再點一次，按「我已回來」。"
+      : "現在是下班時間。平日 07:30–16:30 會顯示上班與外出；要預先請假，點自己的名牌。";
 
     if (!state.data) return;
+    var counts = { in: 0, out: 0, leave: 0 };
     $grid.textContent = "";
     state.data.staff.forEach(function (s) {
       var leave = working ? activeLeave(s.id, now) : null;
       var trip = working && !leave ? activeTrip(s.id, now) : null;
       var cls = !working ? "off" : leave ? "leave" : trip ? "out" : "in";
       var status = !working ? "下班" : leave ? "請假中" : trip ? "外出中" : "上班中";
+      if (working) counts[cls]++;
       var kids = [
+        el("span", { class: "lamp", "aria-hidden": "true" }),
         el("div", { class: "name" }, s.name),
         el("div", { class: "status" }, status)
       ];
@@ -122,9 +130,9 @@
           leave.startDate === leave.endDate ? "今天請假" : "請假至 " + mmdd(leave.endDate)));
       } else if (trip) {
         kids.push(el("div", { class: "detail" }, [
-          trip.purpose + "・" + trip.place,
-          el("br"),
-          hhmm(new Date(trip.startAt)) + " 出發"
+          el("span", { class: "purpose" }, trip.purpose),
+          el("span", {}, "往 " + trip.place),
+          el("span", { class: "since" }, hhmm(new Date(trip.startAt)) + " 出發")
         ]));
       }
       $grid.appendChild(el("button", {
@@ -134,8 +142,11 @@
       }, kids));
     });
     if (!state.data.staff.length) {
-      $grid.appendChild(el("p", { class: "hint" }, "名單是空的，請先到下方「名單設定」新增同事。"));
+      $grid.appendChild(el("p", { class: "empty" }, "名單是空的。請到下方「名單設定」新增同事。"));
     }
+    $sIn.textContent = working ? counts.in : "–";
+    $sOut.textContent = working ? counts.out : "–";
+    $sLeave.textContent = working ? counts.leave : "–";
   }
 
   function onTile(staff, trip, working, leave) {
@@ -154,7 +165,7 @@
   function openOut(staff) {
     var pick = { purpose: "", place: "" };
     var other = { purpose: "", place: "" };
-    var go = el("button", { class: "btn primary", type: "button", disabled: "" }, "出發");
+    var go = el("button", { class: "btn go", type: "button", disabled: "" }, "出發");
 
     function value(kind) { return pick[kind] === OTHER ? other[kind].trim() : pick[kind]; }
     function refresh() {
@@ -286,7 +297,7 @@
         }, "登記錯了，取消"),
         el("button", { class: "btn", type: "button", onclick: closeDialog }, "關閉"),
         el("button", {
-          class: "btn primary", type: "button",
+          class: "btn back", type: "button",
           onclick: function () {
             send({ action: "end", id: trip.id }).then(function (ok) {
               if (ok) { closeDialog(); toast("歡迎回來，" + staff.name); }

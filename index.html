@@ -3,20 +3,34 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#232f35" />
   <title>人員行蹤告知表</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=B612+Mono:wght@400;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header class="top">
-    <h1>人員行蹤告知表</h1>
-    <div class="clock" id="clock"></div>
+    <div class="top-inner">
+      <h1>人員行蹤告知表</h1>
+      <div class="legend" aria-label="目前人數">
+        <span class="count"><i class="lamp in"></i>上班中 <b id="sIn">–</b></span>
+        <span class="count"><i class="lamp out"></i>外出中 <b id="sOut">–</b></span>
+        <span class="count"><i class="lamp leave"></i>請假中 <b id="sLeave">–</b></span>
+      </div>
+      <div class="clock">
+        <span id="date" class="date"></span>
+        <span id="time" class="time"></span>
+      </div>
+    </div>
   </header>
 
   <main>
     <p class="hint" id="hint"></p>
     <div id="grid" class="grid" aria-live="polite"></div>
     <div class="footer">
-      <button class="link" id="openSettings" type="button">名單設定</button>
+      <button class="settings" id="openSettings" type="button">名單設定</button>
     </div>
   </main>
 
