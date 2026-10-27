@@ -1,0 +1,41 @@
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.label {
+  margin: 0;
+  font-family: var(--font-family-display);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.timeInput {
+  width: 8.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.error {
+  margin: 0;
+  color: var(--error);
+  font-weight: 500;
+  font-size: 0.9375rem;
+}
+
+.submit {
+  width: 100%;
+}

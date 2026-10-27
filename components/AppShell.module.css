@@ -1,0 +1,100 @@
+.shell {
+  min-height: 100vh;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-family-base);
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-nav);
+  background: var(--sidebar);
+  color: var(--sidebar-foreground);
+  box-shadow: var(--shadow);
+}
+
+.headerInner {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: var(--spacing-3) var(--spacing-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3) var(--spacing-6);
+  flex-wrap: wrap;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.brandIcon {
+  width: 1.4rem;
+  height: 1.4rem;
+  color: var(--warning);
+}
+
+.brandName {
+  font-family: var(--font-family-display);
+  font-weight: 700;
+  font-size: 1.125rem;
+  letter-spacing: 0.02em;
+}
+
+.nav {
+  display: flex;
+  gap: var(--spacing-1);
+  flex-wrap: wrap;
+}
+
+.navLink {
+  padding: var(--spacing-2) var(--spacing-3);
+  border-radius: var(--radius-full);
+  color: color-mix(in srgb, var(--sidebar-foreground) 78%, transparent);
+  text-decoration: none;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  transition:
+    background-color var(--animation-duration-fast) ease,
+    color var(--animation-duration-fast) ease;
+}
+
+.navLink:hover {
+  background: color-mix(in srgb, var(--sidebar-foreground) 12%, transparent);
+  color: var(--sidebar-foreground);
+}
+
+.navLink.active {
+  background: var(--sidebar-foreground);
+  color: var(--sidebar);
+}
+
+.main {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: var(--spacing-6) var(--spacing-4) var(--spacing-12);
+}
+
+@media (max-width: 640px) {
+  .headerInner {
+    padding: var(--spacing-3);
+  }
+
+  .nav {
+    width: 100%;
+  }
+
+  .navLink {
+    flex: 1;
+    text-align: center;
+    padding: var(--spacing-2);
+    font-size: 0.875rem;
+  }
+
+  .main {
+    padding: var(--spacing-4) var(--spacing-3) var(--spacing-12);
+  }
+}
