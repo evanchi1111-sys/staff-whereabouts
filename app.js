@@ -1,0 +1,296 @@
+(function () {
+  "use strict";
+
+  var URL_ = (window.APPS_SCRIPT_URL || "").trim();
+  var WORK_START = 7 * 60 + 30; // 07:30
+  var WORK_END = 16 * 60 + 30; // 16:30
+  var OTHER = "__other__";
+
+  var state = { data: null, busy: false };
+  var $grid = document.getElementById("grid");
+  var $hint = document.getElementById("hint");
+  var $clock = document.getElementById("clock");
+  var $dlg = document.getElementById("dlg");
+  var $toast = document.getElementById("toast");
+
+  // ---------- 小工具 ----------
+  function el(tag, attrs, children) {
+    var n = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (k) {
+      if (k === "class") n.className = attrs[k];
+      else if (k.indexOf("on") === 0) n.addEventListener(k.slice(2), attrs[k]);
+      else n.setAttribute(k, attrs[k]);
+    });
+    [].concat(children || []).forEach(function (c) {
+      n.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+    });
+    return n;
+  }
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function hhmm(d) { return pad(d.getHours()) + ":" + pad(d.getMinutes()); }
+  var WEEK = ["日", "一", "二", "三", "四", "五", "六"];
+
+  function isWorkTime(now) {
+    var d = now.getDay();
+    if (d < 1 || d > 5) return false;
+    var m = now.getHours() * 60 + now.getMinutes();
+    return m >= WORK_START && m < WORK_END;
+  }
+  function endOfWorkday(now) {
+    var e = new Date(now);
+    e.setHours(16, 30, 0, 0);
+    return e;
+  }
+  function toast(msg, isErr) {
+    $toast.textContent = msg;
+    $toast.className = "toast show" + (isErr ? " err" : "");
+    clearTimeout(toast.t);
+    toast.t = setTimeout(function () { $toast.className = "toast"; }, 2800);
+  }
+
+  // ---------- 與 Google 試算表溝通 ----------
+  function parse(res) {
+    return res.json().then(function (j) {
+      if (!j.ok) throw new Error(j.error || "操作失敗");
+      return j.data;
+    });
+  }
+  function load() {
+    return fetch(URL_).then(parse).then(function (d) { state.data = d; render(); });
+  }
+  function send(payload) {
+    state.busy = true;
+    // 不加 Content-Type，瀏覽器會用純文字送出，Apps Script 才不會被擋
+    return fetch(URL_, { method: "POST", body: JSON.stringify(payload) })
+      .then(parse)
+      .then(function (d) { state.data = d; render(); return true; })
+      .catch(function (e) { toast(e.message || "操作失敗，請稍後再試", true); return false; })
+      .then(function (ok) { state.busy = false; return ok; });
+  }
+
+  // ---------- 狀態判斷 ----------
+  function activeTrip(staffId, now) {
+    if (!state.data) return null;
+    var list = state.data.trips.filter(function (t) {
+      return t.staffId === staffId &&
+        new Date(t.startAt) <= now && now < new Date(t.endAt);
+    });
+    return list.length ? list[list.length - 1] : null;
+  }
+
+  // ---------- 畫面 ----------
+  function render() {
+    var now = new Date();
+    $clock.textContent = "週" + WEEK[now.getDay()] + " " + hhmm(now);
+    var working = isWorkTime(now);
+    $hint.textContent = working
+      ? "點自己的名牌登記外出；回來後再點一次按「我已回來」。"
+      : "目前為下班時間（平日 07:30–16:30 才會顯示上班／外出）。";
+
+    if (!state.data) return;
+    $grid.textContent = "";
+    state.data.staff.forEach(function (s) {
+      var trip = working ? activeTrip(s.id, now) : null;
+      var cls = !working ? "off" : trip ? "out" : "in";
+      var status = !working ? "下班" : trip ? "外出中" : "上班中";
+      var kids = [
+        el("div", { class: "name" }, s.name),
+        el("div", { class: "status" }, status)
+      ];
+      if (trip) {
+        kids.push(el("div", { class: "detail" }, [
+          trip.purpose + "・" + trip.place,
+          el("br"),
+          hhmm(new Date(trip.startAt)) + " 出發"
+        ]));
+      }
+      $grid.appendChild(el("button", {
+        class: "tile " + cls,
+        type: "button",
+        onclick: function () { onTile(s, trip, working); }
+      }, kids));
+    });
+    if (!state.data.staff.length) {
+      $grid.appendChild(el("p", { class: "hint" }, "名單是空的，請先到下方「名單設定」新增同事。"));
+    }
+  }
+
+  function onTile(staff, trip, working) {
+    if (!working) { toast("目前是下班時間"); return; }
+    if (trip) openBack(staff, trip); else openOut(staff);
+  }
+
+  function openDialog(children) {
+    $dlg.textContent = "";
+    $dlg.appendChild(el("div", { class: "dlg" }, children));
+    if (!$dlg.open) $dlg.showModal();
+  }
+  function closeDialog() { if ($dlg.open) $dlg.close(); }
+
+  // 外出登記
+  function openOut(staff) {
+    var pick = { purpose: "", place: "" };
+    var other = { purpose: "", place: "" };
+    var go = el("button", { class: "btn primary", type: "button", disabled: "" }, "出發");
+
+    function value(kind) { return pick[kind] === OTHER ? other[kind].trim() : pick[kind]; }
+    function refresh() {
+      if (value("purpose") && value("place")) go.removeAttribute("disabled");
+      else go.setAttribute("disabled", "");
+    }
+    function group(kind, title, items) {
+      var chips = el("div", { class: "chips" });
+      var input = el("input", {
+        type: "text", maxlength: "30", placeholder: "請輸入" + title,
+        style: "display:none",
+        oninput: function (e) { other[kind] = e.target.value; refresh(); }
+      });
+      function mk(label, val) {
+        var c = el("button", { class: "chip", type: "button" }, label);
+        c.addEventListener("click", function () {
+          pick[kind] = val;
+          [].forEach.call(chips.children, function (x) { x.classList.remove("sel"); });
+          c.classList.add("sel");
+          input.style.display = val === OTHER ? "" : "none";
+          if (val === OTHER) input.focus();
+          refresh();
+        });
+        return c;
+      }
+      items.forEach(function (i) { chips.appendChild(mk(i.label, i.label)); });
+      chips.appendChild(mk("其他", OTHER));
+      return el("div", {}, [el("h3", {}, title), chips, input]);
+    }
+
+    go.addEventListener("click", function () {
+      var now = new Date();
+      go.setAttribute("disabled", "");
+      send({
+        action: "create", staffId: staff.id,
+        purpose: value("purpose"), place: value("place"),
+        startAt: now.toISOString(), endAt: endOfWorkday(now).toISOString()
+      }).then(function (ok) {
+        if (ok) { closeDialog(); toast(staff.name + " 已登記外出"); } else refresh();
+      });
+    });
+
+    openDialog([
+      el("h2", {}, staff.name + "，要外出嗎？"),
+      group("purpose", "公務事由", state.data.purposes),
+      group("place", "前往地點", state.data.places),
+      el("div", { class: "actions" }, [
+        el("button", { class: "btn", type: "button", onclick: closeDialog }, "取消"),
+        go
+      ])
+    ]);
+  }
+
+  // 回來 / 取消
+  function openBack(staff, trip) {
+    openDialog([
+      el("h2", {}, staff.name + " 外出中"),
+      el("div", { class: "big" }, [
+        "事由：" + trip.purpose, el("br"),
+        "地點：" + trip.place, el("br"),
+        "出發：" + hhmm(new Date(trip.startAt))
+      ]),
+      el("div", { class: "actions" }, [
+        el("button", {
+          class: "btn danger", type: "button",
+          onclick: function () {
+            send({ action: "cancel", id: trip.id }).then(function (ok) {
+              if (ok) { closeDialog(); toast("已取消登記"); }
+            });
+          }
+        }, "登記錯了，取消"),
+        el("button", { class: "btn", type: "button", onclick: closeDialog }, "關閉"),
+        el("button", {
+          class: "btn primary", type: "button",
+          onclick: function () {
+            send({ action: "end", id: trip.id }).then(function (ok) {
+              if (ok) { closeDialog(); toast("歡迎回來，" + staff.name); }
+            });
+          }
+        }, "我已回來")
+      ])
+    ]);
+  }
+
+  // 名單設定
+  function openSettings() {
+    if (!state.data) return;
+    function section(title, desc, items, labelOf, placeholder, addPayload, removePayload) {
+      var list = el("ul", { class: "list" });
+      items.forEach(function (it) {
+        list.appendChild(el("li", {}, [
+          labelOf(it),
+          el("button", {
+            type: "button", "aria-label": "刪除 " + labelOf(it),
+            onclick: function () {
+              if (!confirm("確定刪除「" + labelOf(it) + "」嗎？")) return;
+              send(removePayload(it)).then(function (ok) { if (ok) openSettings(); });
+            }
+          }, "✕")
+        ]));
+      });
+      var input = el("input", { type: "text", maxlength: "30", placeholder: placeholder });
+      var add = el("button", {
+        class: "btn primary", type: "button",
+        onclick: function () {
+          var v = input.value.trim();
+          if (!v) return;
+          send(addPayload(v)).then(function (ok) { if (ok) openSettings(); });
+        }
+      }, "新增");
+      return el("div", {}, [
+        el("h3", {}, title),
+        el("p", { class: "hint" }, desc),
+        list,
+        el("div", { class: "addrow" }, [input, add])
+      ]);
+    }
+    openDialog([
+      el("h2", {}, "名單設定"),
+      section("同事名單", "刪除同事時，他的外出登記也會一併刪除。",
+        state.data.staff, function (s) { return s.name; }, "輸入姓名",
+        function (v) { return { action: "addStaff", name: v }; },
+        function (s) { return { action: "removeStaff", id: s.id }; }),
+      section("公務事由選項", "登記時可直接點選，也可選「其他」自行輸入。",
+        state.data.purposes, function (o) { return o.label; }, "輸入事由，例如：會勘",
+        function (v) { return { action: "addOption", kind: "purpose", label: v }; },
+        function (o) { return { action: "removeOption", id: o.id }; }),
+      section("常用地點選項", "登記時可直接點選，也可選「其他」自行輸入。",
+        state.data.places, function (o) { return o.label; }, "輸入地點，例如：台中港",
+        function (v) { return { action: "addOption", kind: "place", label: v }; },
+        function (o) { return { action: "removeOption", id: o.id }; }),
+      el("div", { class: "actions" }, [
+        el("button", { class: "btn", type: "button", onclick: closeDialog }, "關閉")
+      ])
+    ]);
+  }
+
+  // ---------- 啟動 ----------
+  document.getElementById("openSettings").addEventListener("click", openSettings);
+
+  if (!URL_) {
+    $hint.textContent = "";
+    $grid.appendChild(el("div", { class: "setup" }, [
+      "尚未設定資料來源。請依照 docs/設定步驟.md 建立 Google 試算表後端，",
+      "再把網址貼進 config.js。"
+    ]));
+    return;
+  }
+
+  load().catch(function (e) {
+    $hint.textContent = "讀取失敗：" + (e.message || e) + "（請檢查 config.js 的網址）";
+  });
+  // 每 15 秒自動更新，讓大家看到別人最新的狀態
+  setInterval(function () {
+    if (!state.busy && !$dlg.open) load().catch(function () {});
+  }, 15000);
+  // 每 30 秒重畫（時間到了自動切換上班／下班）
+  setInterval(render, 30000);
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden && !state.busy) load().catch(function () {});
+  });
+})();
