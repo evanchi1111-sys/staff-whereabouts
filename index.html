@@ -7,8 +7,17 @@
   <title>人員行蹤告知表</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=B612+Mono:wght@400;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=B612+Mono:wght@400;700&family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="themes/common.css" />
+  <link rel="stylesheet" id="theme" href="themes/a.css" />
+  <script>
+    // 試看三個方案：網址後面加 ?v=a、?v=b 或 ?v=c
+    (function () {
+      var v = (new URLSearchParams(location.search).get("v") || "a").toLowerCase();
+      if (!/^[abc]$/.test(v)) v = "a";
+      document.getElementById("theme").href = "themes/" + v + ".css";
+    })();
+  </script>
 </head>
 <body>
   <header class="top">

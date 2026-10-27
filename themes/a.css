@@ -1,3 +1,11 @@
+/* 方案 A：控制室看板（鋼板看板＋琺瑯名牌＋狀態燈） */
+:root {
+  --paper: #f1f3f1; --ink-soft: #55646b; --line: #9eabb0; --chip-bg: #fff; --list-bg: #dfe5e6;
+  --strong: #232f35; --on-strong: #fff; --signal: #f2b705; --signal-edge: #b88a00; --on-signal: #1b262c;
+  --ok-btn: #1d7a4a; --radius: 8px; --ctl-radius: 4px; --ctl-border: 1.5px;
+  --dlg-shadow: 0 6px 0 #232f35, 0 20px 50px rgba(0,0,0,.45); --scrim: rgba(20,28,32,.6);
+  --toast-accent: #3fc07f; --toast-err: #4a1e19;
+}
 /*
  * 設計概念：控制室的看板。
  * 鋼板色的看板上掛著一塊塊琺瑯名牌，每塊名牌有一顆狀態燈：
@@ -115,64 +123,6 @@ main { max-width: 64rem; margin: 0 auto; padding: 22px 16px 56px; }
 }
 .settings:hover { background: rgba(255,255,255,.1); }
 
-/* ---------- 對話框（琺瑯面板） ---------- */
-dialog {
-  border: none; padding: 0; border-radius: 8px;
-  width: min(33rem, calc(100vw - 24px)); max-height: calc(100vh - 24px);
-  background: var(--enamel); color: var(--ink);
-  box-shadow: 0 6px 0 var(--steel-deep), 0 20px 50px rgba(0,0,0,.45);
-}
-dialog[open] { animation: pop .16s ease-out; }
-@keyframes pop { from { transform: translateY(8px); opacity: 0; } }
-dialog::backdrop { background: rgba(20,28,32,.6); }
-.dlg { padding: 22px; display: flex; flex-direction: column; gap: 18px; }
-.dlg h2 { margin: 0; font-size: 1.5rem; font-weight: 900; }
-.dlg h3 { margin: 0 0 8px; font-size: 1rem; font-weight: 700; }
-.dlg .hint { color: var(--ink-soft); margin: 6px 0 0; font-size: .9375rem; }
-.chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.chip {
-  font: inherit; cursor: pointer; background: #fff; color: var(--ink);
-  border: 1.5px solid #9eabb0; border-radius: 4px; padding: 9px 16px; min-height: 44px;
-}
-.chip:hover { border-color: var(--steel-deep); }
-.chip.sel { background: var(--steel-deep); border-color: var(--steel-deep); color: #fff; font-weight: 700; }
-.chip.sel::before { content: "✓ "; color: var(--lamp-out); }
-input[type=text], .daterow input {
-  width: 100%; margin-top: 8px; padding: 10px 12px; font: inherit; color: var(--ink);
-  background: #fff; border: 1.5px solid #9eabb0; border-radius: 4px;
-}
-.daterow { display: flex; gap: 14px; flex-wrap: wrap; }
-.daterow label { display: flex; align-items: center; gap: 8px; }
-.daterow input { margin-top: 0; width: auto; }
-.actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
-.btn {
-  font: inherit; cursor: pointer; min-height: 44px; padding: 9px 20px; border-radius: 4px;
-  background: #fff; color: var(--ink); border: 1.5px solid #9eabb0;
-}
-.btn:hover { border-color: var(--steel-deep); }
-.btn.primary { background: var(--steel-deep); border-color: var(--steel-deep); color: #fff; font-weight: 700; }
-.btn.go { background: var(--lamp-out); border-color: #b88a00; color: var(--ink); font-weight: 900; }
-.btn.back { background: #1d7a4a; border-color: #1d7a4a; color: #fff; font-weight: 900; }
-.btn.danger { color: var(--danger); }
-.btn:disabled { opacity: .4; cursor: not-allowed; }
-.big { font-size: 1.125rem; line-height: 1.7; }
-.list { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 10px; padding: 0; list-style: none; }
-.list li { display: inline-flex; align-items: center; gap: 6px; background: #dfe5e6; border-radius: 4px; padding: 4px 4px 4px 12px; }
-.list button { font: inherit; border: none; background: none; cursor: pointer; color: var(--ink-soft); min-width: 32px; min-height: 32px; }
-.list button:hover { color: var(--danger); }
-.addrow { display: flex; gap: 8px; }
-.addrow input { margin-top: 0; }
-
-.toast {
-  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
-  background: var(--steel-deep); color: #fff; padding: 11px 20px; border-radius: 6px;
-  border-left: 6px solid var(--lamp-in);
-  opacity: 0; pointer-events: none; transition: opacity .2s; max-width: 90vw; z-index: 99;
-}
-.toast.show { opacity: 1; }
-.toast.err { border-left-color: var(--danger); background: #4a1e19; }
-.setup { background: #fff3cd; color: var(--ink); border-radius: 6px; padding: 14px; line-height: 1.7; grid-column: 1 / -1; }
-
 @media (max-width: 520px) {
   .top-inner { padding: 12px 14px; }
   .top h1 { font-size: 1.25rem; width: 100%; }
@@ -180,6 +130,6 @@ input[type=text], .daterow input {
   .grid { gap: 14px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .tile.out .lamp, dialog[open] { animation: none; }
+  .tile.out .lamp { animation: none; }
   .tile { transition: none; }
 }

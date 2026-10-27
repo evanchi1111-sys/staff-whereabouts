@@ -1,0 +1,110 @@
+/*
+ * 方案 B：路標。
+ * 取材自台灣高速公路的綠底白字指示牌：一行一個人，像出口預告牌；
+ * 外出的人換成黃底黑字的警示牌，最容易被看到。
+ */
+:root {
+  --sign-green: #00663a;
+  --sign-deep: #004a2a;
+  --sign-white: #ffffff;
+  --sign-yellow: #ffd100;
+  --ink: #0d2218;
+  --ink-soft: #4b6357;
+  --danger: #b5382c;
+  --font: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --font-num: "Noto Sans TC", system-ui, sans-serif;
+
+  --paper: #ffffff; --line: #8fae9f; --chip-bg: #fff; --list-bg: #e2eee7;
+  --strong: #00663a; --on-strong: #fff; --signal: #ffd100; --signal-edge: #b89a00; --on-signal: #0d2218;
+  --ok-btn: #00663a; --radius: 14px; --ctl-radius: 8px; --ctl-border: 2px;
+  --dlg-shadow: 0 0 0 5px #fff, 0 0 0 9px #00663a, 0 24px 60px rgba(0,0,0,.5); --scrim: rgba(0,30,16,.65);
+  --toast-accent: #ffd100; --toast-err: #5a1f18;
+}
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; background: #e7ece9; color: var(--ink); font-family: var(--font); line-height: 1.5; }
+:focus-visible { outline: 3px solid #0b57d0; outline-offset: 2px; }
+
+/* 整塊看板：綠底、白色內框 */
+.top, main { max-width: 56rem; margin-left: auto; margin-right: auto; }
+.top {
+  margin-top: 20px; background: var(--sign-green); color: var(--sign-white);
+  border-radius: 18px 18px 0 0; padding: 16px 12px 0; position: relative;
+}
+.top::before { /* 白色內框線 */
+  content: ""; position: absolute; inset: 8px 8px 0 8px; border: 3px solid #fff; border-bottom: 0;
+  border-radius: 12px 12px 0 0; pointer-events: none;
+}
+.top-inner { padding: 14px 22px 18px; display: flex; align-items: center; gap: 10px 28px; flex-wrap: wrap; }
+.top h1 { margin: 0; font-size: 1.75rem; font-weight: 900; letter-spacing: .08em; margin-right: auto; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-weight: 700; }
+.count { display: inline-flex; align-items: center; gap: 6px; }
+.count b { font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.clock { display: flex; align-items: baseline; gap: 10px; }
+.clock .date { font-weight: 500; opacity: .9; }
+.clock .time { font-size: 2rem; font-weight: 900; font-variant-numeric: tabular-nums; letter-spacing: .03em; }
+
+/* 圖例小標誌：和名牌上的狀態同一套形狀 */
+.lamp { display: inline-block; width: 14px; height: 14px; flex: none; border-radius: 50%; background: #fff; }
+.lamp.in { background: #fff; }
+.lamp.out { background: var(--sign-yellow); border-radius: 3px; transform: rotate(45deg) scale(.9); }
+.lamp.leave { background: transparent; box-shadow: inset 0 0 0 3px #fff; }
+
+main {
+  background: var(--sign-green); color: #fff; padding: 0 12px 20px; border-radius: 0 0 18px 18px; position: relative;
+  margin-bottom: 48px;
+}
+main::before {
+  content: ""; position: absolute; inset: 0 8px 8px 8px; border: 3px solid #fff; border-top: 0;
+  border-radius: 0 0 12px 12px; pointer-events: none;
+}
+.hint { margin: 0; padding: 0 22px 12px; color: #d6eadf; font-size: .9375rem; position: relative; }
+.grid { display: flex; flex-direction: column; padding: 0 22px 8px; position: relative; }
+.empty { color: #fff; }
+
+/* 一行一個人 */
+.tile {
+  font: inherit; color: #fff; text-align: left; cursor: pointer; background: transparent; border: 0;
+  border-top: 2px solid rgba(255,255,255,.35);
+  display: grid; grid-template-columns: 2.2rem minmax(6.5rem, 9rem) 7rem 1fr; align-items: center; gap: 4px 14px;
+  padding: 14px 8px; min-height: 4.5rem; border-radius: 0;
+}
+.tile:hover { background: rgba(255,255,255,.1); }
+.tile .lamp { grid-column: 1; width: 22px; height: 22px; justify-self: center; }
+.tile .name { grid-column: 2; font-size: 1.625rem; font-weight: 900; line-height: 1.2; overflow-wrap: anywhere; }
+.tile .status { grid-column: 3; font-size: 1.125rem; font-weight: 700; }
+.tile .detail { grid-column: 4; display: flex; flex-wrap: wrap; gap: 2px 14px; align-items: baseline; font-size: 1.0625rem; }
+.tile .detail .purpose { font-weight: 900; }
+.tile .detail .since { margin-left: auto; font-variant-numeric: tabular-nums; opacity: .9; }
+
+/* 上班中：白圓點 */
+.tile.in .lamp { background: #fff; }
+/* 外出：整行換成黃底黑字警示牌，左側黑色菱形 */
+.tile.out { background: var(--sign-yellow); color: #14130a; border-top-color: transparent; border-radius: 10px; margin: 3px 0; }
+.tile.out:hover { background: #ffdc3a; }
+.tile.out .lamp { background: #14130a; border-radius: 3px; transform: rotate(45deg) scale(.85); }
+.tile.out .detail .since { opacity: 1; }
+.tile.out + .tile { border-top-color: transparent; }
+/* 請假：白框空心圓 */
+.tile.leave .lamp { background: transparent; box-shadow: inset 0 0 0 4px #fff; }
+.tile.leave .status { color: #cde6d8; }
+/* 下班：淡出 */
+.tile.off { opacity: .55; }
+.tile.off .lamp { background: transparent; box-shadow: inset 0 0 0 3px rgba(255,255,255,.8); }
+
+.footer { text-align: center; margin: 14px 0 6px; position: relative; }
+.settings {
+  font: inherit; font-weight: 700; cursor: pointer; color: var(--sign-green); background: #fff;
+  border: 2px solid var(--sign-green); border-radius: 999px; padding: 8px 22px;
+}
+.settings:hover { background: #e2eee7; }
+
+@media (max-width: 680px) {
+  .top, main { margin-left: 8px; margin-right: 8px; }
+  .top h1 { width: 100%; font-size: 1.5rem; }
+  .clock { margin-left: auto; }
+  .tile { grid-template-columns: 2rem 1fr auto; padding: 12px 4px; }
+  .tile .name { grid-column: 2; font-size: 1.5rem; }
+  .tile .status { grid-column: 3; font-size: 1rem; }
+  .tile .detail { grid-column: 2 / -1; }
+  .tile .detail .since { margin-left: 0; }
+}
