@@ -167,7 +167,7 @@ function handle_(req) {
       var values = sh.getDataRange().getValues();
       for (var i = 1; i < values.length; i++) {
         if (String(values[i][0]) === String(req.id)) {
-          sh.getRange(i + 1, 6).setValue(now.toISOString());
+          sh.getRange(i + 1, 6).setNumberFormat('@').setValue(now.toISOString());
         }
       }
       break;
