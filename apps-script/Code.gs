@@ -7,6 +7,7 @@
 var SHEET_STAFF = '人員';
 var SHEET_OPTIONS = '選項';
 var SHEET_TRIPS = '行蹤';
+var SHEET_LEAVES = '請假';
 
 var DEFAULT_PURPOSES = ['開會', '洽公', '廠商拜訪', '送件', '教育訓練', '現場巡視'];
 var DEFAULT_PLACES = ['廠區現場', '總公司', '市區', '其他單位'];
@@ -18,6 +19,7 @@ function setup() {
   var staff = ensureSheet_(ss, SHEET_STAFF, ['id', 'name']);
   var options = ensureSheet_(ss, SHEET_OPTIONS, ['id', 'kind', 'label']);
   ensureSheet_(ss, SHEET_TRIPS, ['id', 'staffId', 'purpose', 'place', 'startAt', 'endAt']);
+  ensureSheet_(ss, SHEET_LEAVES, ['id', 'staffId', 'startDate', 'endDate']);
 
   if (staff.getLastRow() < 2) {
     DEFAULT_STAFF.forEach(function (n) { staff.appendRow([id_(), n]); });
@@ -56,6 +58,15 @@ function readRows_(name) {
     });
 }
 
+/** 請假工作表若還沒建立（舊版升級）就自動建立。 */
+function readLeaves_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss.getSheetByName(SHEET_LEAVES)) {
+    ensureSheet_(ss, SHEET_LEAVES, ['id', 'staffId', 'startDate', 'endDate']);
+  }
+  return readRows_(SHEET_LEAVES);
+}
+
 function snapshot_() {
   var options = readRows_(SHEET_OPTIONS);
   return {
@@ -64,7 +75,8 @@ function snapshot_() {
       .map(function (o) { return { id: o.id, label: o.label }; }),
     places: options.filter(function (o) { return o.kind === 'place'; })
       .map(function (o) { return { id: o.id, label: o.label }; }),
-    trips: readRows_(SHEET_TRIPS)
+    trips: readRows_(SHEET_TRIPS),
+    leaves: readLeaves_()
   };
 }
 
@@ -160,6 +172,24 @@ function handle_(req) {
     case 'removeStaff':
       deleteWhere_(SHEET_STAFF, function (r) { return String(r[0]) === String(req.id); });
       deleteWhere_(SHEET_TRIPS, function (r) { return String(r[1]) === String(req.id); });
+      readLeaves_();
+      deleteWhere_(SHEET_LEAVES, function (r) { return String(r[1]) === String(req.id); });
+      break;
+    case 'addLeave': {
+      var re = /^\d{4}-\d{2}-\d{2}$/;
+      var sd = String(req.startDate), ed = String(req.endDate);
+      if (!re.test(sd) || !re.test(ed)) throw new Error('日期格式不正確');
+      if (ed < sd) throw new Error('結束日期不能早於開始日期');
+      readLeaves_();
+      sheet_(SHEET_LEAVES).appendRow([id_(), String(req.staffId), sd, ed]);
+      // 不留歷史：清掉結束超過兩天的請假
+      var old = Utilities.formatDate(new Date(now.getTime() - 2 * 24 * 3600 * 1000), 'Asia/Taipei', 'yyyy-MM-dd');
+      deleteWhere_(SHEET_LEAVES, function (r) { return String(r[3]) < old; });
+      break;
+    }
+    case 'removeLeave':
+      readLeaves_();
+      deleteWhere_(SHEET_LEAVES, function (r) { return String(r[0]) === String(req.id); });
       break;
     case 'addOption': {
       var kind = req.kind === 'place' ? 'place' : 'purpose';

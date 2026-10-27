@@ -41,6 +41,25 @@
     e.setHours(16, 30, 0, 0);
     return e;
   }
+  function ymd(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  function mmdd(str) { return str.slice(5).replace("-", "/"); }
+  // 預設請假起始日：上班時間內或今天還沒上班 → 今天；否則下一個上班日
+  function defaultLeaveStart(now) {
+    var d = new Date(now);
+    var m = d.getHours() * 60 + d.getMinutes();
+    var wd = d.getDay();
+    if (wd >= 1 && wd <= 5 && m < WORK_END) return ymd(d);
+    do { d.setDate(d.getDate() + 1); } while (d.getDay() === 0 || d.getDay() === 6);
+    return ymd(d);
+  }
+  function leavesOf(staffId) {
+    return ((state.data && state.data.leaves) || []).filter(function (l) { return l.staffId === staffId; });
+  }
+  function activeLeave(staffId, now) {
+    var today = ymd(now);
+    var list = leavesOf(staffId).filter(function (l) { return l.startDate <= today && today <= l.endDate; });
+    return list.length ? list[list.length - 1] : null;
+  }
   function toast(msg, isErr) {
     $toast.textContent = msg;
     $toast.className = "toast show" + (isErr ? " err" : "");
@@ -84,20 +103,24 @@
     $clock.textContent = "週" + WEEK[now.getDay()] + " " + hhmm(now);
     var working = isWorkTime(now);
     $hint.textContent = working
-      ? "點自己的名牌登記外出；回來後再點一次按「我已回來」。"
-      : "目前為下班時間（平日 07:30–16:30 才會顯示上班／外出）。";
+      ? "點自己的名牌登記外出或請假；回來後再點一次按「我已回來」。"
+      : "目前為下班時間（平日 07:30–16:30 才會顯示上班／外出）。要預先登記請假，點自己的名牌即可。";
 
     if (!state.data) return;
     $grid.textContent = "";
     state.data.staff.forEach(function (s) {
-      var trip = working ? activeTrip(s.id, now) : null;
-      var cls = !working ? "off" : trip ? "out" : "in";
-      var status = !working ? "下班" : trip ? "外出中" : "上班中";
+      var leave = working ? activeLeave(s.id, now) : null;
+      var trip = working && !leave ? activeTrip(s.id, now) : null;
+      var cls = !working ? "off" : leave ? "leave" : trip ? "out" : "in";
+      var status = !working ? "下班" : leave ? "請假中" : trip ? "外出中" : "上班中";
       var kids = [
         el("div", { class: "name" }, s.name),
         el("div", { class: "status" }, status)
       ];
-      if (trip) {
+      if (leave) {
+        kids.push(el("div", { class: "detail" },
+          leave.startDate === leave.endDate ? "今天請假" : "請假至 " + mmdd(leave.endDate)));
+      } else if (trip) {
         kids.push(el("div", { class: "detail" }, [
           trip.purpose + "・" + trip.place,
           el("br"),
@@ -107,7 +130,7 @@
       $grid.appendChild(el("button", {
         class: "tile " + cls,
         type: "button",
-        onclick: function () { onTile(s, trip, working); }
+        onclick: function () { onTile(s, trip, working, leave); }
       }, kids));
     });
     if (!state.data.staff.length) {
@@ -115,8 +138,8 @@
     }
   }
 
-  function onTile(staff, trip, working) {
-    if (!working) { toast("目前是下班時間"); return; }
+  function onTile(staff, trip, working, leave) {
+    if (!working || leave) { openLeave(staff); return; }
     if (trip) openBack(staff, trip); else openOut(staff);
   }
 
@@ -179,10 +202,68 @@
       group("purpose", "公務事由", state.data.purposes),
       group("place", "前往地點", state.data.places),
       el("div", { class: "actions" }, [
+        el("button", { class: "btn", type: "button", onclick: function () { openLeave(staff); } }, "我要請假"),
         el("button", { class: "btn", type: "button", onclick: closeDialog }, "取消"),
         go
       ])
     ]);
+  }
+
+  // 請假登記
+  function openLeave(staff) {
+    var now = new Date();
+    var today = ymd(now);
+    var start = defaultLeaveStart(now);
+    var startIn = el("input", { type: "date", value: start, min: today });
+    var endIn = el("input", { type: "date", value: start, min: today });
+    startIn.addEventListener("change", function () {
+      endIn.min = startIn.value || today;
+      if (endIn.value < startIn.value) endIn.value = startIn.value;
+    });
+    var mine = leavesOf(staff.id)
+      .filter(function (l) { return l.endDate >= today; })
+      .sort(function (a, b) { return a.startDate < b.startDate ? -1 : 1; });
+
+    var children = [el("h2", {}, staff.name + "：請假")];
+    if (mine.length) {
+      var list = el("ul", { class: "list" });
+      mine.forEach(function (l) {
+        var label = l.startDate === l.endDate ? mmdd(l.startDate) : mmdd(l.startDate) + " – " + mmdd(l.endDate);
+        list.appendChild(el("li", {}, [
+          label,
+          el("button", {
+            type: "button", "aria-label": "取消 " + label + " 的請假",
+            onclick: function () {
+              send({ action: "removeLeave", id: l.id }).then(function (ok) {
+                if (ok) { toast("已取消請假"); openLeave(staff); }
+              });
+            }
+          }, "✕")
+        ]));
+      });
+      children.push(el("div", {}, [el("h3", {}, "已登記的請假（按 ✕ 可取消）"), list]));
+    }
+    children.push(el("div", {}, [
+      el("h3", {}, "新增請假"),
+      el("div", { class: "daterow" }, [
+        el("label", {}, ["從", startIn]),
+        el("label", {}, ["到", endIn])
+      ]),
+      el("p", { class: "hint" }, "只請一天，兩個日期選同一天即可。請假期間的平日會顯示「請假中」。")
+    ]));
+    children.push(el("div", { class: "actions" }, [
+      el("button", { class: "btn", type: "button", onclick: closeDialog }, "關閉"),
+      el("button", {
+        class: "btn primary", type: "button",
+        onclick: function () {
+          if (!startIn.value || !endIn.value) { toast("請選擇日期", true); return; }
+          if (endIn.value < startIn.value) { toast("結束日期不能早於開始日期", true); return; }
+          send({ action: "addLeave", staffId: staff.id, startDate: startIn.value, endDate: endIn.value })
+            .then(function (ok) { if (ok) { closeDialog(); toast("已登記請假"); } });
+        }
+      }, "登記請假")
+    ]));
+    openDialog(children);
   }
 
   // 回來 / 取消
