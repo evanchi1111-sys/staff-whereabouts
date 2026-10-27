@@ -1,8 +1,4 @@
-/*
- * 方案 C：便利貼牆。
- * 白板上貼著一張張便利貼，名字是手寫風格；
- * 顏色就是狀態：薄荷綠＝上班中、橘色＝外出中、薰衣草紫＝請假中、灰＝下班。
- */
+/* 外觀：便利貼牆。白板上貼著一張張便利貼，顏色就是狀態。 */
 :root {
   --board: #eef1f6;
   --ink: #23264d;
@@ -96,3 +92,62 @@ main { max-width: 62rem; margin: 0 auto; padding: 14px 16px 64px; }
   .grid { grid-template-columns: repeat(2, 1fr); gap: 24px 14px; }
 }
 @media (prefers-reduced-motion: reduce) { .tile { transition: none; } }
+
+/* 三個方案共用：對話框、按鈕、選項、提示訊息（顏色由各方案的變數決定） */
+dialog {
+  border: none; padding: 0; border-radius: var(--radius);
+  width: min(33rem, calc(100vw - 24px)); max-height: calc(100vh - 24px);
+  background: var(--paper); color: var(--ink);
+  box-shadow: var(--dlg-shadow);
+}
+dialog[open] { animation: pop .16s ease-out; }
+@keyframes pop { from { transform: translateY(8px); opacity: 0; } }
+dialog::backdrop { background: var(--scrim); }
+.dlg { padding: 22px; display: flex; flex-direction: column; gap: 18px; }
+.dlg h2 { margin: 0; font-size: 1.5rem; font-weight: 900; }
+.dlg h3 { margin: 0 0 8px; font-size: 1rem; font-weight: 700; }
+.dlg .hint { color: var(--ink-soft); margin: 6px 0 0; font-size: .9375rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  font: inherit; cursor: pointer; background: var(--chip-bg); color: var(--ink);
+  border: var(--ctl-border) solid var(--line); border-radius: var(--ctl-radius); padding: 9px 16px; min-height: 44px;
+}
+.chip:hover { border-color: var(--strong); }
+.chip.sel { background: var(--strong); border-color: var(--strong); color: var(--on-strong); font-weight: 700; }
+.chip.sel::before { content: "✓ "; color: var(--signal); }
+input[type=text], .daterow input {
+  width: 100%; margin-top: 8px; padding: 10px 12px; font: inherit; color: var(--ink);
+  background: var(--chip-bg); border: var(--ctl-border) solid var(--line); border-radius: var(--ctl-radius);
+}
+.daterow { display: flex; gap: 14px; flex-wrap: wrap; }
+.daterow label { display: flex; align-items: center; gap: 8px; }
+.daterow input { margin-top: 0; width: auto; }
+.actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+.btn {
+  font: inherit; cursor: pointer; min-height: 44px; padding: 9px 20px; border-radius: var(--ctl-radius);
+  background: var(--chip-bg); color: var(--ink); border: var(--ctl-border) solid var(--line);
+}
+.btn:hover { border-color: var(--strong); }
+.btn.primary { background: var(--strong); border-color: var(--strong); color: var(--on-strong); font-weight: 700; }
+.btn.go { background: var(--signal); border-color: var(--signal-edge); color: var(--on-signal); font-weight: 900; }
+.btn.back { background: var(--ok-btn); border-color: var(--ok-btn); color: #fff; font-weight: 900; }
+.btn.danger { color: var(--danger, #b5382c); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.big { font-size: 1.125rem; line-height: 1.7; }
+.list { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 10px; padding: 0; list-style: none; }
+.list li { display: inline-flex; align-items: center; gap: 6px; background: var(--list-bg); border-radius: var(--ctl-radius); padding: 4px 4px 4px 12px; }
+.list button { font: inherit; border: none; background: none; cursor: pointer; color: var(--ink-soft); min-width: 32px; min-height: 32px; }
+.list button:hover { color: #b5382c; }
+.addrow { display: flex; gap: 8px; }
+.addrow input { margin-top: 0; }
+
+.toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+  background: var(--strong); color: var(--on-strong); padding: 11px 20px; border-radius: var(--ctl-radius);
+  border-left: 6px solid var(--toast-accent);
+  opacity: 0; pointer-events: none; transition: opacity .2s; max-width: 90vw; z-index: 99;
+}
+.toast.show { opacity: 1; }
+.toast.err { border-left-color: #e5604f; background: var(--toast-err); }
+.setup { background: #fff3cd; color: #1b262c; border-radius: 6px; padding: 14px; line-height: 1.7; grid-column: 1 / -1; }
+@media (prefers-reduced-motion: reduce) { dialog[open] { animation: none; } }
